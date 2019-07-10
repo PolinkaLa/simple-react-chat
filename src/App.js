@@ -1,26 +1,71 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { Fragment, Component } from 'react';
+import './bootstrap.css';
+import { Navbar, Container } from 'react-bootstrap';
+import MessageList from './MessageList';
+import SendMessageForm from './SendMessageForm';
+import { ChatManager, TokenProvider } from '@pusher/chatkit-client';
+import CREDENTIAL from './Credential';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+class App extends Component {
+    constructor() {
+        super();
+        this.state = {
+            messages: []
+        }
+        this.sendMessage = this.sendMessage.bind(this)
+    }
+
+    componentDidMount() {
+        const chatManager = new ChatManager({
+            instanceLocator: CREDENTIAL.instanceLocator,
+            userId: CREDENTIAL.userId,
+            tokenProvider: new TokenProvider({
+                url: CREDENTIAL.testToken
+            })
+        })
+
+        chatManager.connect()
+        .then(currentUser => {
+            this.currentUser = currentUser;
+            this.currentUser.subscribeToRoom({
+                roomId: CREDENTIAL.roomId,
+                hooks: {
+                    onMessage: message => {
+                        this.setState({
+                            messages: [...this.state.messages, message]
+                        })
+                    }
+                }
+            })
+        })
+    }
+
+    sendMessage(text) {
+        this.currentUser.sendMessage({
+            text,
+            roomId: CREDENTIAL.roomId
+        })
+    }
+
+    render() {
+        return (
+            <Fragment>
+                <Navbar className="navbar-expand-lg navbar-light bg-light">
+                    <Container>
+                        <Navbar.Brand>Simple React Chat</Navbar.Brand>
+                    </Container>
+                </Navbar>
+                <Container style={{ height: '80vh', width: '25%', 'overflow-y': 'scroll' }}>
+                    <MessageList 
+                        messages={this.state.messages} />
+                </Container>
+                <Container style={{ width: '25%' }}>
+                    <SendMessageForm
+                        sendMessage={this.sendMessage} />
+                </Container>
+            </Fragment>
+        );
+    }
 }
 
 export default App;
